@@ -233,7 +233,14 @@ cat << EOF > "$CONF_DIR/$DOMAIN.conf"
 </VirtualHost>
 EOF
 
+  if ! grep -q "$DOMAIN" /etc/hosts; then
+      echo "Adding $DOMAIN to /etc/hosts"
+      echo "127.0.0.1 $DOMAIN" | sudo tee -a /etc/hosts
+  else
+      echo "$DOMAIN already exists in /etc/hosts"
+  fi
   sudo a2ensite $DOMAIN.conf
+  sudo systemctl reload apache2
   sudo systemctl restart apache2
   echo -e "${YELLOW}Virtual host for $DOMAIN created and enabled successfully.${RESET}"
 }
@@ -243,10 +250,18 @@ remove_vhost() {
   DOMAIN=$1
   ROOT_DIR="/var/www"
   CONF_DIR="/etc/apache2/sites-available"
-  a2dissite $DOMAIN.conf
+  sudo a2dissite $DOMAIN.conf
+
+  if ! grep -q "$DOMAIN" /etc/hosts; then
+    echo "Adding $DOMAIN to /etc/hosts"
+    sudo sed -i "/127.0.0.1 $DOMAIN/d" /etc/hosts
+  else
+    echo "$DOMAIN already exists in /etc/hosts"
+  fi
+
   rm -f "$CONF_DIR/$DOMAIN.conf"
   rm -rf "$ROOT_DIR/$DOMAIN"
- sudp systemctl restart apache2
+  sudp systemctl restart apache2
   echo -e "${YELLOW}Virtual host for $DOMAIN removed successfully.${RESET}"
 }
 
