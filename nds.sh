@@ -29,7 +29,6 @@ check_global() {
   sudo chmod +x /usr/local/bin/nds
   echo -e "${YELLOW}Script is now globally accessible as 'nds'.${RESET}"
 }
-check_global
 
 # Function to display PHP, NVM, Node, and NPM versions
 view_versions() {
@@ -146,9 +145,14 @@ remove_nvm() {
 
 # Function to change PHP version
 change_php_version() {
-  echo -e "${YELLOW}Changing PHP version...${RESET}"
-  sudo update-alternatives --config php
+  version=$1
+  echo -e "${YELLOW}Changing PHP version to PHP $version...${RESET}"
+  sudo a2dismod php*
+  sudo a2enmod php${version}
+  sudo update-alternatives --set php /usr/bin/php${version}
   sudo systemctl restart apache2
+  selected_php=$(php -v | head -n 1)
+  echo -e "${YELLOW}PHP version changed to: ${BLUE}$selected_php${RESET}"
 }
 
 # Function to install PHP version
@@ -200,6 +204,91 @@ remove_composer() {
   echo -e "${YELLOW}Composer removed successfully.${RESET}"
 }
 
+
+# Function to create vHost
+create_vhost() {
+  DOMAIN=$1
+  ROOT_DIR="/var/www"
+  CONF_DIR="/etc/apache2/sites-available"
+  mkdir -p "$ROOT_DIR/$DOMAIN"
+  chown -R $USER:$USER "$ROOT_DIR/$DOMAIN"
+  chmod -R 755 $ROOT_DIR
+  chmod -R 777 $ROOT_DIR/$DOMAIN
+
+# Create a new virtual host configuration file
+cat << EOF > "$CONF_DIR/$DOMAIN.conf"
+<VirtualHost *:80>
+    ServerAdmin nds@$DOMAIN
+    ServerName $DOMAIN
+    ServerAlias www.$DOMAIN
+    DocumentRoot $ROOT_DIR/$DOMAIN
+    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN-error.log
+    CustomLog \${APACHE_LOG_DIR}/$DOMAIN-access.log combinedd
+
+    <Directory $ROOT_DIR/$DOMAIN>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+  sudo a2ensite $DOMAIN.conf
+  sudo systemctl restart apache2
+  echo -e "${YELLOW}Virtual host for $DOMAIN created and enabled successfully.${RESET}"
+}
+
+# Function to remove vHost
+remove_vhost() {
+  DOMAIN=$1
+  ROOT_DIR="/var/www"
+  CONF_DIR="/etc/apache2/sites-available"
+  a2dissite $DOMAIN.conf
+  rm -f "$CONF_DIR/$DOMAIN.conf"
+  rm -rf "$ROOT_DIR/$DOMAIN"
+ sudp systemctl restart apache2
+  echo -e "${YELLOW}Virtual host for $DOMAIN removed successfully.${RESET}"
+}
+
+# Function to remove vHost
+get_cinfig_command_vhost() {
+ echo -e "${YELLOW}CONFIG :- sudo nano /etc/apache2/sites-available/your.domain.com.conf .${RESET}"
+}
+
+
+# Function to show PHP menu
+vHost_menu() {
+  while true; do
+    echo -e "${BLUE} ===========|  vHost Menu  |=========== ${RESET}"
+    echo -e "${YELLOW}1. Create vHost  ${RESET}"
+    echo -e "${YELLOW}2. Remove vHost ${RESET}"
+    echo -e "${YELLOW}3. Configar vHost ${RESET}"
+    echo -e "${YELLOW}0. Exit ${RESET}"
+    read -p "Enter your choice [0-3]: " choice
+
+    case $choice in
+      1)
+        read -p "Enter the vHost you want to Create (e.g., domain.com):" DOMAIN
+        create_vhost $DOMAIN
+        ;;
+      2)
+        read -p "Enter the vHost you want to remove (e.g., domain.com):" DOMAIN
+        remove_vhost $DOMAIN
+        ;;
+      3)
+        echo -e "Show Configration Command"
+        get_cinfig_command_vhost 
+        ;;
+      0)
+        break
+        ;;
+      *)
+        echo -e "${RED}Invalid option selected.${RESET}"
+        ;;
+    esac
+  done
+}
+
 # Function to show PHP menu
 php_menu() {
   while true; do
@@ -212,7 +301,10 @@ php_menu() {
 
     case $choice in
       1)
-        change_php_version
+      echo -e "${YELLOW}Select PHP version to install: 8.1, 8.2, 8.3${RESET}"
+        read -p "Enter PHP version (e.g., 8.1): " version
+        change_php_version $version
+        
         ;;
       2)
         echo -e "${YELLOW}Select PHP version to install: 8.1, 8.2, 8.3${RESET}"
@@ -294,14 +386,43 @@ composer_menu() {
   done
 }
 
+# Function to show Composer menu
+other_menu() {
+  while true; do
+    echo -e "${BLUE} ===========|  Composer Menu  |=========== ${RESET}"
+    echo -e "${YELLOW}1. Install Node ${RESET}"
+    echo -e "${YELLOW}2. Show all versions ${RESET}"
+    echo -e "${YELLOW}3. Globaly Install  ${RESET}"
+    read -p "Enter your choice [0-2]: " choice
+
+    case $choice in
+      1)
+        install_composer
+        ;;
+      2)
+        view_versions
+        ;;
+      3)
+        check_global
+        ;;
+      0)
+        break
+        ;;
+      *)
+        echo -e "${RED}Invalid option selected.${RESET}"
+        ;;
+    esac
+  done
+}
+
 # Main menu
 while true; do
   echo -e "${BLUE} ===========|  Main Menu  |=========== ${RESET}"
-  echo -e "${YELLOW}1. PHP Menu${RESET}"
-  echo -e "${YELLOW}2. Node Menu${RESET}"
-  echo -e "${YELLOW}3. Composer Menu${RESET}"
-  echo -e "${YELLOW}4. Show all versions${RESET}"
-  echo -e "${YELLOW}0. Exit${RESET}"
+  echo -e "${YELLOW}1. PHP ${RESET}"
+  echo -e "${YELLOW}2. vHost ${RESET}"
+  echo -e "${YELLOW}3. Composer ${RESET}"
+  echo -e "${YELLOW}4. Other ${RESET}"
+  echo -e "${YELLOW}0. Exit ${RESET}"
   read -p "Enter your choice [0-4]: " choice
 
   case $choice in
@@ -309,14 +430,14 @@ while true; do
       php_menu
       ;;
     2)
-      node_menu
+      vHost_menu
       ;;
     3)
       composer_menu
       ;;
     4)
-      view_versions
-      ;;
+      other_menu
+      ;; 
     0)
       echo -e "${YELLOW}Exiting...${RESET}"
       exit 0
