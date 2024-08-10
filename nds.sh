@@ -1,4 +1,6 @@
 #!/bin/bash
+## Author: Nikunj Sorathiya | Hardik Variya
+# sudo bash ~/nds.sh
 
 # Display ASCII art
 echo "             _       "
