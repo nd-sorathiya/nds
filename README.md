@@ -64,11 +64,6 @@ curl -o nds.sh https://raw.githubusercontent.com/nd-sorathiya/nds/main/nds.sh
 sudo chmod +x ./nds.sh
 sudo ./nds.sh
 ```
-  - Now, you can run the script with:
-```bash
-sudo nds
-```
-
 
 4. **Run the Script Globally**:
   - Make the script globally accessible:
